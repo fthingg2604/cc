@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Control - WPlace Bot</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2><i class="fas fa-robot"></i> Điều Khiển Bot</h2>
+                        <p class="text-muted">{{ image.original_filename }} ({{ image.width }}x{{ image.height }} pixels)</p>
+                    </div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Quay lại
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Control Panel -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-gamepad"></i> Bảng Điều Khiển</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Tọa độ bắt đầu:</label>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="start-x" class="form-label small">TL X:</label>
+                                        <input type="number" class="form-control" id="start-x" value="{{ image.start_x or 1624 }}" min="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="start-y" class="form-label small">TL Y:</label>
+                                        <input type="number" class="form-control" id="start-y" value="{{ image.start_y or 965 }}" min="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Px X:</label>
+                                        <input type="number" class="form-control" id="pixel-x" value="{{ image.width }}" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Px Y:</label>
+                                        <input type="number" class="form-control" id="pixel-y" value="{{ image.height }}" readonly>
+                                    </div>
+                                </div>
+                                <div class="form-text">TL: Top-Left corner, Px: Pixel dimensions ({{ image.width }}x{{ image.height }})</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="bot-mode" class="form-label">Chế độ Bot:</label>
+                                <select class="form-select" id="bot-mode">
+                                    <option value="single">Đơn luồng (1 tài khoản)</option>
+                                    <option value="multi-thread" selected>Đa luồng (1 tài khoản)</option>
+                                    <option value="multi-account">Đa tài khoản (nhanh nhất)</option>
+                                </select>
+                                <div class="form-text">Đa tài khoản = nhanh nhất nhưng cần setup accounts</div>
+                            </div>
+                            <div class="col-md-4" id="thread-count-section">
+                                <label for="thread-count" class="form-label">Số luồng:</label>
+                                <select class="form-select" id="thread-count">
+                                    <option value="1">1 luồng (an toàn)</option>
+                                    <option value="2" selected>2 luồng (khuyên dùng)</option>
+                                    <option value="3">3 luồng (nhanh)</option>
+                                    <option value="4">4 luồng (rất nhanh)</option>
+                                </select>
+                                <div class="form-text">Nhiều luồng = nhanh hơn nhưng rủi ro cao hơn</div>
+                            </div>
+                            <div class="col-md-4" id="account-count-section" style="display: none;">
+                                <label for="account-count" class="form-label">Số tài khoản:</label>
+                                <select class="form-select" id="account-count">
+                                    <option value="0">Chưa có tài khoản</option>
+                                </select>
+                                <div class="form-text">
+                                    <a href="#" id="manage-accounts-link">Quản lý tài khoản</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="headless-mode">
+                                    <label class="form-check-label" for="headless-mode">
+                                        Chế độ ẩn (Headless)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="auto-retry" checked>
+                                    <label class="form-check-label" for="auto-retry">
+                                        Tự động thử lại khi lỗi
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info" id="time-estimate-alert">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Lưu ý:</strong> Bot sẽ đợi 30 giây giữa mỗi pixel theo quy định của wplace.live. 
+                            <br>
+                            <div id="time-estimates">
+                                Với {{ image.width * image.height }} pixels:
+                                <ul class="mb-0 mt-2">
+                                    <li><strong>1 luồng:</strong> {{ "%.1f"|format((image.width * image.height * 30) / 3600) }} giờ</li>
+                                    <li><strong>2 luồng:</strong> {{ "%.1f"|format((image.width * image.height * 30) / 3600 / 2) }} giờ (khuyên dùng)</li>
+                                    <li><strong>4 luồng:</strong> {{ "%.1f"|format((image.width * image.height * 30) / 3600 / 4) }} giờ (nhanh nhất)</li>
+                                </ul>
+                            </div>
+                            <div id="account-estimates" style="display: none;">
+                                Với {{ image.width * image.height }} pixels và nhiều tài khoản:
+                                <ul class="mb-0 mt-2">
+                                    <li><strong>2 tài khoản:</strong> {{ "%.1f"|format((image.width * image.height * 30) / 3600 / 2) }} giờ</li>
+                                    <li><strong>3 tài khoản:</strong> {{ "%.1f"|format((image.width * image.height * 30) / 3600 / 3) }} giờ</li>
+                                    <li><strong>4 tài khoản:</strong> {{ "%.1f"|format((image.width * image.height * 30) / 3600 / 4) }} giờ (siêu nhanh!)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button class="btn btn-success btn-lg" id="start-bot-btn" data-image-id="{{ image.id }}">
+                                <i class="fas fa-play"></i> Bắt Đầu Bot
+                            </button>
+                            <button class="btn btn-danger btn-lg" id="stop-bot-btn" style="display: none;">
+                                <i class="fas fa-stop"></i> Dừng Bot
+                            </button>
+                            <button class="btn btn-outline-info" id="generate-script-btn" data-image-id="{{ image.id }}">
+                                <i class="fas fa-code"></i> Tạo Script
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bot Status -->
+                <div class="card mb-4" id="bot-status-card" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Trạng Thái Bot</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h6>Trạng thái</h6>
+                                    <span id="bot-status" class="badge bg-secondary">Chưa khởi động</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h6>Tiến độ</h6>
+                                    <span id="bot-progress">0%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h6>Pixels đã vẽ</h6>
+                                    <span id="pixels-placed">0</span> / <span id="total-pixels">{{ image.width * image.height }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h6>Thời gian còn lại</h6>
+                                    <span id="eta">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%" id="progress-bar"></div>
+                            </div>
+                        </div>
+
+                        <div id="bot-error" class="alert alert-danger mt-3" style="display: none;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span id="error-message"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Preview -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-image"></i> Xem Trước</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        {% if image.processed_filename %}
+                        <img src="{{ url_for('download_file', filename=image.processed_filename) }}" 
+                             class="img-fluid rounded border mb-3" 
+                             style="max-height: 200px; image-rendering: pixelated;">
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Kích thước:</small><br>
+                                <strong>{{ image.width }}x{{ image.height }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Pixel size:</small><br>
+                                <strong>{{ image.pixel_size }}px</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Sessions -->
+                {% if recent_sessions %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-history"></i> Phiên Gần Đây</h6>
+                    </div>
+                    <div class="card-body">
+                        {% for session in recent_sessions %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <small class="text-muted">{{ session.start_time.strftime('%d/%m %H:%M') }}</small><br>
+                                <span class="badge 
+                                    {% if session.status == 'completed' %}bg-success
+                                    {% elif session.status == 'failed' %}bg-danger
+                                    {% elif session.status == 'running' %}bg-primary
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ session.status }}
+                                </span>
+                            </div>
+                            <div class="text-end">
+                                <small>{{ session.pixels_placed }}/{{ session.total_pixels }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Script Generation Modal -->
+        <div class="modal fade" id="scriptModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-code"></i> Python Script</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Script Python tự động để chạy bot ngoại tuyến:</p>
+                        <div class="mb-3">
+                            <button class="btn btn-outline-secondary btn-sm" id="copy-script-btn">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" id="download-script-btn">
+                                <i class="fas fa-download"></i> Tải xuống .py
+                            </button>
+                        </div>
+                        <pre><code id="script-content" class="language-python"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Management Modal -->
+    <div class="modal fade" id="accountModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Quản Lý Tài Khoản</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Lưu ý:</strong> Sử dụng nhiều tài khoản có thể vi phạm Terms of Service của wplace.live. 
+                                Hãy đảm bảo bạn hiểu rủi ro trước khi sử dụng.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Account Form -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6><i class="fas fa-plus"></i> Thêm Tài Khoản Mới</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="add-account-form">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="new-username" placeholder="Username" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="password" class="form-control" id="new-password" placeholder="Password" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="new-premium">
+                                            <label class="form-check-label" for="new-premium">Premium</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="submit" class="btn btn-primary">Thêm</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Accounts List -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-users"></i> Danh Sách Tài Khoản</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="accounts-list">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-user-plus fa-2x"></i>
+                                    <p>Chưa có tài khoản nào. Thêm tài khoản đầu tiên ở trên.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-success" id="test-accounts-btn">Test Tất Cả</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentSessionId = null;
+        let statusInterval = null;
+        let accountStats = { total_accounts: 0, accounts: [] };
+
+        // Bot mode change handler
+        document.getElementById('bot-mode').addEventListener('change', function() {
+            const mode = this.value;
+            const threadSection = document.getElementById('thread-count-section');
+            const accountSection = document.getElementById('account-count-section');
+            const timeEstimates = document.getElementById('time-estimates');
+            const accountEstimates = document.getElementById('account-estimates');
+            
+            if (mode === 'multi-account') {
+                threadSection.style.display = 'none';
+                accountSection.style.display = 'block';
+                timeEstimates.style.display = 'none';
+                accountEstimates.style.display = 'block';
+                loadAccountStats();
+            } else {
+                threadSection.style.display = 'block';
+                accountSection.style.display = 'none';
+                timeEstimates.style.display = 'block';
+                accountEstimates.style.display = 'none';
+            }
+        });
+
+        // Manage accounts link
+        document.getElementById('manage-accounts-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('accountModal'));
+            modal.show();
+            loadAccountsList();
+        });
+
+        // Start bot
+        document.getElementById('start-bot-btn').addEventListener('click', function() {
+            const imageId = this.dataset.imageId;
+            const startX = document.getElementById('start-x').value;
+            const startY = document.getElementById('start-y').value;
+            const headless = document.getElementById('headless-mode').checked;
+            const botMode = document.getElementById('bot-mode').value;
+            const threadCount = document.getElementById('thread-count').value;
+
+            const payload = {
+                image_id: imageId,
+                start_x: startX,
+                start_y: startY,
+                headless: headless,
+                bot_mode: botMode
+            };
+
+            if (botMode === 'multi-account') {
+                payload.multi_account = true;
+            } else {
+                payload.thread_count = threadCount;
+            }
+
+            fetch('/api/bot/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentSessionId = data.session_id;
+                    document.getElementById('start-bot-btn').style.display = 'none';
+                    document.getElementById('stop-bot-btn').style.display = 'inline-block';
+                    document.getElementById('bot-status-card').style.display = 'block';
+                    
+                    // Start monitoring status
+                    statusInterval = setInterval(updateBotStatus, 2000);
+                    updateBotStatus();
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi khởi động bot');
+            });
+        });
+
+        // Update bot status
+        function updateBotStatus() {
+            if (!currentSessionId) return;
+
+            fetch(`/api/bot/status/${currentSessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('bot-status').textContent = data.status;
+                document.getElementById('bot-status').className = `badge ${getStatusBadgeClass(data.status)}`;
+                
+                const progress = Math.round(data.progress);
+                document.getElementById('bot-progress').textContent = progress + '%';
+                document.getElementById('progress-bar').style.width = progress + '%';
+                document.getElementById('pixels-placed').textContent = data.pixels_placed;
+
+                // Calculate ETA
+                if (data.status === 'running' && data.progress > 0) {
+                    const remainingPixels = data.total_pixels - data.pixels_placed;
+                    const etaMinutes = Math.round((remainingPixels * 30) / 60);
+                    document.getElementById('eta').textContent = etaMinutes > 60 ? 
+                        Math.round(etaMinutes / 60) + ' giờ' : etaMinutes + ' phút';
+                }
+
+                if (data.error_message) {
+                    document.getElementById('error-message').textContent = data.error_message;
+                    document.getElementById('bot-error').style.display = 'block';
+                }
+
+                // Stop monitoring if completed or failed
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(statusInterval);
+                    document.getElementById('start-bot-btn').style.display = 'inline-block';
+                    document.getElementById('stop-bot-btn').style.display = 'none';
+                }
+            })
+            .catch(error => console.error('Status update error:', error));
+        }
+
+        function getStatusBadgeClass(status) {
+            switch(status) {
+                case 'running': return 'bg-primary';
+                case 'completed': return 'bg-success';
+                case 'failed': return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+        }
+
+        // Generate script
+        document.getElementById('generate-script-btn').addEventListener('click', function() {
+            const imageId = this.dataset.imageId;
+            const startX = document.getElementById('start-x').value;
+            const startY = document.getElementById('start-y').value;
+            const threadCount = document.getElementById('thread-count').value;
+
+            fetch('/api/generate-script', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image_id: imageId,
+                    start_x: startX,
+                    start_y: startY,
+                    thread_count: threadCount
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('script-content').textContent = data.script_content;
+                    document.getElementById('download-script-btn').onclick = function() {
+                        const blob = new Blob([data.script_content], { type: 'text/plain' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = data.script_filename;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    };
+                    new bootstrap.Modal(document.getElementById('scriptModal')).show();
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            });
+        });
+
+        // Copy script
+        document.getElementById('copy-script-btn').addEventListener('click', function() {
+            const scriptContent = document.getElementById('script-content').textContent;
+            navigator.clipboard.writeText(scriptContent).then(function() {
+                this.innerHTML = '<i class="fas fa-check"></i> Đã copy';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                }, 2000);
+            }.bind(this));
+        });
+
+        // Account management functions
+        function loadAccountStats() {
+            fetch('/api/accounts/stats')
+            .then(response => response.json())
+            .then(data => {
+                accountStats = data;
+                updateAccountCountSelect();
+            })
+            .catch(error => console.error('Error loading account stats:', error));
+        }
+
+        function updateAccountCountSelect() {
+            const select = document.getElementById('account-count');
+            select.innerHTML = '';
+            
+            if (accountStats.total_accounts === 0) {
+                select.innerHTML = '<option value="0">Chưa có tài khoản</option>';
+            } else {
+                for (let i = 1; i <= Math.min(accountStats.total_accounts, 4); i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `${i} tài khoản`;
+                    select.appendChild(option);
+                }
+                select.value = Math.min(accountStats.total_accounts, 2);
+            }
+        }
+
+        function loadAccountsList() {
+            fetch('/api/accounts/list')
+            .then(response => response.json())
+            .then(data => {
+                const accountsList = document.getElementById('accounts-list');
+                
+                if (data.accounts.length === 0) {
+                    accountsList.innerHTML = `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-user-plus fa-2x"></i>
+                            <p>Chưa có tài khoản nào. Thêm tài khoản đầu tiên ở trên.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                data.accounts.forEach(account => {
+                    const statusBadge = account.is_active ? 
+                        '<span class="badge bg-success">Active</span>' : 
+                        '<span class="badge bg-secondary">Inactive</span>';
+                    
+                    const premiumBadge = account.is_premium ? 
+                        '<span class="badge bg-warning">Premium</span>' : 
+                        '<span class="badge bg-info">Free</span>';
+                    
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                            <div>
+                                <strong>${account.username}</strong>
+                                ${premiumBadge}
+                                ${statusBadge}
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeAccount('${account.username}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                accountsList.innerHTML = html;
+            })
+            .catch(error => console.error('Error loading accounts:', error));
+        }
+
+        // Add account
+        document.getElementById('add-account-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const isPremium = document.getElementById('new-premium').checked;
+
+            fetch('/api/accounts/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    is_premium: isPremium
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.reset();
+                    loadAccountsList();
+                    loadAccountStats();
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi thêm tài khoản');
+            });
+        });
+
+        // Remove account
+        function removeAccount(username) {
+            if (confirm(`Xóa tài khoản ${username}?`)) {
+                fetch('/api/accounts/remove', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadAccountsList();
+                        loadAccountStats();
+                    } else {
+                        alert('Lỗi: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi xóa tài khoản');
+                });
+            }
+        }
+
+        // Test accounts
+        document.getElementById('test-accounts-btn').addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            
+            fetch('/api/accounts/test')
+            .then(response => response.json())
+            .then(data => {
+                alert(`Test kết quả: ${data.successful_logins}/${data.total_accounts} tài khoản login thành công`);
+                loadAccountsList();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi test tài khoản');
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = 'Test Tất Cả';
+            });
+        });
+
+        // Initialize
+        loadAccountStats();
+    </script>
+</body>
+</html>

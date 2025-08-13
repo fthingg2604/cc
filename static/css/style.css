@@ -1,0 +1,218 @@
+/* Custom styles for WPlace Bot */
+
+.upload-area {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-primary);
+}
+
+.upload-area.dragover {
+    background-color: var(--bs-primary-bg-subtle);
+    border-color: var(--bs-primary);
+    transform: scale(1.02);
+}
+
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(30px, 1fr));
+    gap: 4px;
+    padding: 10px;
+}
+
+.color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.color-swatch:hover {
+    transform: scale(1.1);
+    border-color: var(--bs-light);
+}
+
+.color-swatch.premium::after {
+    content: "👑";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 12px;
+    background: var(--bs-warning);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.image-preview {
+    max-height: 300px;
+    object-fit: contain;
+}
+
+.card-sm {
+    transition: transform 0.2s ease;
+}
+
+.card-sm:hover {
+    transform: translateY(-2px);
+}
+
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+    0% {
+        background-position: 1rem 0;
+    }
+    100% {
+        background-position: 0 0;
+    }
+}
+
+.pixel-grid {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+/* Bot status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-running {
+    background-color: var(--bs-primary);
+    animation: pulse 2s infinite;
+}
+
+.status-completed {
+    background-color: var(--bs-success);
+}
+
+.status-failed {
+    background-color: var(--bs-danger);
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .color-palette {
+        grid-template-columns: repeat(8, 1fr);
+    }
+    
+    .color-swatch {
+        width: 25px;
+        height: 25px;
+    }
+    
+    .color-swatch.premium::after {
+        font-size: 10px;
+        width: 14px;
+        height: 14px;
+    }
+}
+
+/* Code highlighting */
+pre {
+    background-color: var(--bs-dark);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+code {
+    color: var(--bs-light);
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Drag and drop styling */
+.border-dashed {
+    border-style: dashed !important;
+}
+
+/* Custom alerts */
+.alert-bot {
+    background-color: var(--bs-info-bg-subtle);
+    border-color: var(--bs-info);
+    color: var(--bs-info-text);
+}
+
+/* Animation for successful actions */
+.success-flash {
+    animation: flash-success 0.5s ease-in-out;
+}
+
+@keyframes flash-success {
+    0% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: var(--bs-success-bg-subtle);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Error states */
+.error-shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+/* Footer styling */
+footer {
+    border-top: 1px solid var(--bs-border-color);
+    padding-top: 1rem;
+}
